@@ -10,6 +10,7 @@
 @interface ViewController ()
 @property (nonatomic) NSArray *data;
 @property (nonatomic) NJKScrollFullScreen *scrollProxy;
+@property (strong, nonatomic) IBOutlet UIView *accessoryView;
 @end
 
 @implementation ViewController
@@ -42,18 +43,26 @@
     [self.refreshControl addTarget:self action:@selector(refreshControlValueChanged:) forControlEvents:UIControlEventValueChanged];
 
     _scrollProxy = [[NJKScrollFullScreen alloc] initWithForwardTarget:self]; // UIScrollViewDelegate and UITableViewDelegate methods proxy to ViewController
+    _scrollProxy.downThresholdY = 100.0;
 
     self.tableView.delegate = (id)_scrollProxy; // cast for surpress incompatible warnings
 
     _scrollProxy.delegate = self;
+    
+    _scrollProxy.accessoryView = _accessoryView;
+
+    self.tableView.contentInset = UIEdgeInsetsMake(_accessoryView.frame.size.height, 0, 0, 0);
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(resetBars) name:UIApplicationWillEnterForegroundNotification object:nil]; // resume bars when back to forground from other apps
+}
 
-    if (!IS_RUNNING_IOS7) {
-        // support full screen on iOS 6
-        self.navigationController.navigationBar.barStyle = UIBarStyleBlackTranslucent;
-        self.navigationController.toolbar.barStyle = UIBarStyleBlackTranslucent;
-    }
+- (void) viewDidAppear:(BOOL)animated
+{
+    // add the accessory view
+    [self.view.superview addSubview:_accessoryView];
+    CGRect frame = _scrollProxy.accessoryView.frame;
+    frame.origin.y = CGRectGetMaxY(self.navigationController.navigationBar.frame);
+    _scrollProxy.accessoryView.frame = frame;
 }
 
 -(void)viewDidLayoutSubviews
@@ -71,7 +80,7 @@
 {
     [super viewWillDisappear:animated];
     [_scrollProxy reset];
-    [self showNavigationBar:animated];
+    [self showNavigationBar:_scrollProxy animated:animated];
     [self showToolbar:animated];
 }
 
@@ -98,7 +107,7 @@
 - (void)resetBars
 {
     [_scrollProxy reset];
-    [self showNavigationBar:NO];
+    [self showNavigationBar:_scrollProxy animated:NO];
     [self showToolbar:NO];
 }
 
@@ -123,33 +132,47 @@
 
 - (void)scrollFullScreen:(NJKScrollFullScreen *)proxy scrollViewDidScrollUp:(CGFloat)deltaY
 {
-    [self moveNavigationBar:deltaY animated:YES];
+    [self moveNavigationBar:deltaY proxy:proxy animated:YES];
     [self moveToolbar:-deltaY animated:YES]; // move to revese direction
 }
 
 - (void)scrollFullScreen:(NJKScrollFullScreen *)proxy scrollViewDidScrollDown:(CGFloat)deltaY
 {
-    [self moveNavigationBar:deltaY animated:YES];
+    [self moveNavigationBar:deltaY proxy:proxy animated:YES];
     [self moveToolbar:-deltaY animated:YES];
 }
 
 - (void)scrollFullScreenScrollViewDidEndDraggingScrollUp:(NJKScrollFullScreen *)proxy
 {
-    [self hideNavigationBar:YES];
+    [self hideNavigationBar:proxy animated:YES];
+    if (self.tableView.contentOffset.y < 0) {
+        [self.tableView setContentOffset:CGPointZero animated:YES];
+    }
     [self hideToolbar:YES];
 }
 
 - (void)scrollFullScreenScrollViewDidEndDraggingScrollDown:(NJKScrollFullScreen *)proxy
 {
-    [self showNavigationBar:YES];
+    [self showNavigationBar:proxy animated:YES];
     [self showToolbar:YES];
 }
 
-- (void)willRotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration
+- (void) viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
 {
     [_scrollProxy reset];
-    [self showNavigationBar:YES];
-    [self showToolbar:YES];
+    CGRect frame = _scrollProxy.accessoryView.frame;
+    frame.size.width = size.width;
+    _scrollProxy.accessoryView.frame = frame;
+
+    [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
+        CGRect frame = _scrollProxy.accessoryView.frame;
+        frame.origin.y = CGRectGetMaxY(self.navigationController.navigationBar.frame);
+        _scrollProxy.accessoryView.frame = frame;
+    } completion:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
+        [self showNavigationBar:_scrollProxy animated:YES];
+        [self showToolbar:YES];
+    }];
 }
+
 
 @end
