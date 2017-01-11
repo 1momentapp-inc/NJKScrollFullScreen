@@ -63,7 +63,7 @@ NJKScrollDirection detectScrollDirection(currentOffsetY, previousOffsetY)
     BOOL isOverBottomBoundary = currentOffsetY >= bottomBoundary;
 
     BOOL isBouncing = (isOverTopBoundary && currentScrollDirection != NJKScrollDirectionDown) || (isOverBottomBoundary && currentScrollDirection != NJKScrollDirectionUp);
-    if (isBouncing || !scrollView.isDragging) {
+    if ((isBouncing || !scrollView.isDragging) && (_accessoryView == nil)) {
         return;
     }
 
@@ -84,7 +84,7 @@ NJKScrollDirection detectScrollDirection(currentOffsetY, previousOffsetY)
             break;
         case NJKScrollDirectionDown:
         {
-            BOOL isOverThreshold = _accumulatedY > _downThresholdY;
+            BOOL isOverThreshold = _accumulatedY > _downThresholdY | currentOffsetY < 0;
 
             if (isOverThreshold || isOverTopBoundary) {
                 if ([_delegate respondsToSelector:@selector(scrollFullScreen:scrollViewDidScrollDown:)]) {

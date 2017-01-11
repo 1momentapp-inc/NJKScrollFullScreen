@@ -10,6 +10,8 @@
 
 @interface NJKScrollFullScreen : NSObject<UIScrollViewDelegate, UITableViewDelegate, UIWebViewDelegate>
 
+@property (nonatomic, weak) UIView* accessoryView;
+
 @property (nonatomic, weak) id<NJKScrollFullscreenDelegate> delegate;
 
 @property (nonatomic) CGFloat upThresholdY; // up distance until fire. default 0 px.

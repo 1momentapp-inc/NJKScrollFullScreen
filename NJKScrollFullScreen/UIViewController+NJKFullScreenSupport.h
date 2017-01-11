@@ -6,12 +6,14 @@
 
 #import <UIKit/UIKit.h>
 
+#import "NJKScrollFullScreen.h"
+
 @interface UIViewController (NJKFullScreenSupport)
 
-- (void)showNavigationBar:(BOOL)animated;
-- (void)hideNavigationBar:(BOOL)animated;
-- (void)moveNavigationBar:(CGFloat)deltaY animated:(BOOL)animated;
-- (void)setNavigationBarOriginY:(CGFloat)y animated:(BOOL)animated;
+- (void)showNavigationBar:(NJKScrollFullScreen *)fullScreenProxy animated:(BOOL)animated;
+- (void)hideNavigationBar:(NJKScrollFullScreen *)fullScreenProxy animated:(BOOL)animated;
+- (void)moveNavigationBar:(CGFloat)deltaY proxy:(NJKScrollFullScreen *)fullScreenProxy animated:(BOOL)animated;
+- (void)setNavigationBarOriginY:(CGFloat)y proxy:(NJKScrollFullScreen *)fullScreenProxy animated:(BOOL)animated;
 
 - (void)showToolbar:(BOOL)animated;
 - (void)hideToolbar:(BOOL)animated;
@@ -22,12 +24,5 @@
 - (void)hideTabBar:(BOOL)animated;
 - (void)moveTabBar:(CGFloat)deltaY animated:(BOOL)animated;
 - (void)setTabBarOriginY:(CGFloat)y animated:(BOOL)animated;
-
-@end
-
-// Compatible method for typo fixed (https://github.com/ninjinkun/NJKScrollFullScreen/pull/23)
-@interface UIViewController (NJKFullScreenSupportDeprecated)
-
-- (void)moveNavigtionBar:(CGFloat)deltaY animated:(BOOL)animated __deprecated_msg("Use `moveNavigationBar:animated:`");
 
 @end
