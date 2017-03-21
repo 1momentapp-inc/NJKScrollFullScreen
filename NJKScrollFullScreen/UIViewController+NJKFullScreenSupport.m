@@ -59,46 +59,61 @@
     CGRect viewControllerFrame =  [appBaseView convertRect:appBaseView.bounds toView:appKeyWindow];
 
     CGFloat overwrapStatusBarHeight = statusBarHeight - viewControllerFrame.origin.y;
+    CGFloat bottomLimit             = overwrapStatusBarHeight;
 
-    CGRect frame = self.navigationController.navigationBar.frame;
-    CGFloat navigationBarHeight = frame.size.height;
-    
+    CGRect navBarFrame    = self.navigationController.navigationBar.frame;
     CGRect accessoryFrame = fullScreenProxy.accessoryView.frame;
-    CGFloat accessoryViewHeight = accessoryFrame.size.height;
 
-    CGFloat topLimit = -navigationBarHeight -accessoryViewHeight;// + overwrapStatusBarHeight;
-    CGFloat bottomLimit = overwrapStatusBarHeight;
+    CGFloat topLimit = -[self navBarAccessoryHeight:fullScreenProxy];
 
-    frame.origin.y = fmin(fmax(y, topLimit), bottomLimit);
-    accessoryFrame.origin.y = frame.origin.y +navigationBarHeight;
+    navBarFrame.origin.y    = fmin (fmax (y, topLimit), bottomLimit);
+    accessoryFrame.origin.y = CGRectGetMaxY (navBarFrame);
 
-    CGFloat navBarHiddenRatio = overwrapStatusBarHeight > 0 ? (overwrapStatusBarHeight - frame.origin.y) / overwrapStatusBarHeight : 0;
-    CGFloat alpha = MAX(1.f - navBarHiddenRatio, kNearZero);
+    CGFloat invisiblePixels = overwrapStatusBarHeight - navBarFrame.origin.y;
+    CGFloat totalPixels     = overwrapStatusBarHeight - topLimit;
+    CGFloat alpha           = MAX (1 - invisiblePixels / totalPixels, kNearZero);
+
     [UIView animateWithDuration:animated ? 0.2 : 0 animations:^{
-        self.navigationController.navigationBar.frame = frame;
+        self.navigationController.navigationBar.frame = navBarFrame;
         fullScreenProxy.accessoryView.frame = accessoryFrame;
         NSUInteger index = 0;
         for (UIView *view in self.navigationController.navigationBar.subviews) {
             index++;
-            if (index == 1 || view.hidden || view.alpha <= 0.0f) continue;
+            if (index == 1 || view.hidden || view.alpha <= 0.0f)
+                continue;
             view.alpha = alpha;
         }
+        self.navigationController.navigationBar.alpha = alpha;
         for (UIView *view in fullScreenProxy.accessoryView.subviews) {
-            index++;
-            if (index == 1 || view.hidden || view.alpha <= 0.0f) continue;
+            if (view.hidden || view.alpha <= 0.0f)
+                continue;
             view.alpha = alpha;
         }
+        fullScreenProxy.accessoryView.alpha = alpha;
         // fade bar buttons
         UIColor *tintColor = self.navigationController.navigationBar.tintColor;
         if (tintColor) {
             self.navigationController.navigationBar.tintColor = [tintColor colorWithAlphaComponent:alpha];
+            fullScreenProxy.accessoryView.tintColor           = [tintColor colorWithAlphaComponent:alpha];
         }
     }];
 }
 
-- (CGFloat)statusBarHeight {
+- (CGFloat)statusBarHeight
+{
     CGSize statuBarFrameSize = [UIApplication sharedApplication].statusBarFrame.size;
     return statuBarFrameSize.height;
+}
+
+- (CGFloat)navBarAccessoryHeight:(NJKScrollFullScreen *)fullScreenProxy
+{
+    CGRect frame                = self.navigationController.navigationBar.frame;
+    CGFloat navigationBarHeight = frame.size.height;
+
+    CGRect accessoryFrame       = fullScreenProxy.accessoryView.frame;
+    CGFloat accessoryViewHeight = accessoryFrame.size.height;
+
+    return navigationBarHeight + accessoryViewHeight;
 }
 
 #pragma mark -
@@ -128,18 +143,32 @@
 
 - (void)setToolbarOriginY:(CGFloat)y animated:(BOOL)animated
 {
-    CGRect frame = self.navigationController.toolbar.frame;
-    CGFloat toolBarHeight = frame.size.height;
+    CGRect toolBarFrame   = self.navigationController.toolbar.frame;
+    CGFloat toolBarHeight = toolBarFrame.size.height;
     CGSize viewSize = self.navigationController.view.frame.size;
     CGFloat viewHeight = [self bottomBarViewControlleViewHeightFromViewSize:viewSize];
 
     CGFloat topLimit = viewHeight - toolBarHeight;
     CGFloat bottomLimit = viewHeight;
 
-    frame.origin.y = fmin(fmax(y, topLimit), bottomLimit); // limit over moving
+    toolBarFrame.origin.y = fmin (fmax (y, topLimit), bottomLimit);  // limit over moving
+
+    CGFloat invisiblePixels = toolBarHeight - (viewHeight - toolBarFrame.origin.y);
+    CGFloat alpha           = MAX (1 - invisiblePixels / toolBarHeight, kNearZero);
 
     [UIView animateWithDuration:animated ? 0.1 : 0 animations:^{
-        self.navigationController.toolbar.frame = frame;
+        self.navigationController.toolbar.frame = toolBarFrame;
+        for (UIView *view in self.navigationController.toolbar.subviews) {
+            if (view.hidden || view.alpha <= 0.0f)
+                continue;
+            view.alpha = alpha;
+        }
+        self.navigationController.toolbar.alpha = alpha;
+        // fade bar buttons
+        UIColor *tintColor = self.navigationController.toolbar.tintColor;
+        if (tintColor) {
+            self.navigationController.toolbar.tintColor = [tintColor colorWithAlphaComponent:alpha];
+        }
     }];
 }
 
@@ -152,6 +181,7 @@
     CGFloat viewHeight = [self bottomBarViewControlleViewHeightFromViewSize:viewSize];
     CGFloat toolbarHeight = self.tabBarController.tabBar.frame.size.height;
     [self setTabBarOriginY:viewHeight - toolbarHeight animated:animated];
+    self.tabBarController.tabBar.hidden = NO;
 }
 
 - (void)hideTabBar:(BOOL)animated
@@ -159,6 +189,7 @@
     CGSize viewSize = self.tabBarController.view.frame.size;
     CGFloat viewHeight = [self bottomBarViewControlleViewHeightFromViewSize:viewSize];
     [self setTabBarOriginY:viewHeight animated:animated];
+    self.tabBarController.tabBar.hidden = YES;
 }
 
 - (void)moveTabBar:(CGFloat)deltaY animated:(BOOL)animated
@@ -170,19 +201,33 @@
 
 - (void)setTabBarOriginY:(CGFloat)y animated:(BOOL)animated
 {
-    CGRect frame = self.tabBarController.tabBar.frame;
-    CGFloat toolBarHeight = frame.size.height;
+    CGRect tabBarFrame   = self.tabBarController.tabBar.frame;
+    CGFloat tabBarHeight = tabBarFrame.size.height;
     CGSize viewSize = self.tabBarController.view.frame.size;
 
     CGFloat viewHeight = [self bottomBarViewControlleViewHeightFromViewSize:viewSize];
 
-    CGFloat topLimit = viewHeight - toolBarHeight;
+    CGFloat topLimit    = viewHeight - tabBarHeight;
     CGFloat bottomLimit = viewHeight;
 
-    frame.origin.y = fmin(fmax(y, topLimit), bottomLimit); // limit over moving
+    tabBarFrame.origin.y = fmin (fmax (y, topLimit), bottomLimit);  // limit over moving
+
+    CGFloat invisiblePixels = tabBarHeight - (viewHeight - tabBarFrame.origin.y);
+    CGFloat alpha           = MAX (1 - invisiblePixels / tabBarHeight, kNearZero);
 
     [UIView animateWithDuration:animated ? 0.1 : 0 animations:^{
-        self.tabBarController.tabBar.frame = frame;
+        self.tabBarController.tabBar.frame = tabBarFrame;
+        for (UIView *view in self.tabBarController.tabBar.subviews) {
+            if (view.hidden || view.alpha <= 0.0f)
+                continue;
+            view.alpha = alpha;
+        }
+        self.tabBarController.tabBar.alpha = alpha;
+        // fade bar buttons
+        UIColor *tintColor = self.tabBarController.tabBar.tintColor;
+        if (tintColor) {
+            self.tabBarController.tabBar.tintColor = [tintColor colorWithAlphaComponent:alpha];
+        }
     }];
 }
 
@@ -195,4 +240,3 @@
 }
 
 @end
-
